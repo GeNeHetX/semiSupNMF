@@ -1,0 +1,3 @@
+export(mDeconv)
+useDynLib(semiSupNMF, .registration=TRUE)
+importFrom(Rcpp, evalCpp)
