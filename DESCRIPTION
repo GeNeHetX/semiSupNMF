@@ -15,7 +15,8 @@ Imports:
 Depends:
   matrixStats,
   MASS,
-  NNLM
+  NNLM,
+  edgeR
 LinkingTo: 
     Rcpp, 
     RcppArmadillo, 
