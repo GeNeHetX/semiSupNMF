@@ -1,3 +1,11 @@
 export(mDeconv)
+export(normSumTo1)
+export(normByWSum)
+
+export(doICA)
+export(corscoreGS)
+export(getMarkerFromICA)
+
+
 useDynLib(semiSupNMF, .registration=TRUE)
 importFrom(Rcpp, evalCpp)

@@ -1,16 +1,16 @@
 #' Title
 #'
-#' @param XEXP
-#' @param gL
-#' @param addG
+#' @param XEXP A gene expression matrix. Should be non-negative values (log2 normalized counts, counts)
+#' @param gL A list of gene ID/names, all found in the rownames of XEXP. Each entry in the
+#' @param addG A set of gene ID/names,
 #' @param addWhiteComp
 #'
 #' @return
 #' @export
 #'
 #' @examples
-mDeconv <- function(XEXP,gL,addG=NULL,addWhiteComp=F,
-                    maxIter=2000L,nthreads=1,printInfo=F,isLogged2=TRUE){
+mDeconv <- function(XEXP,gL,addG=NULL,addWhiteComp=T,
+                    maxIter=2000L,nthreads=1,printInfo=F,testInternalUnlog=FALSE){
 
   #Run everything in log2 scale
   doLog=TRUE
@@ -46,8 +46,9 @@ mDeconv <- function(XEXP,gL,addG=NULL,addWhiteComp=F,
 
   X=as.matrix(XEXP[selg,])
 
-  if(isLogged2){
-   X=semiSupNMF:::.qcpm(X,isLogged2,doLog)
+
+  if(testInternalUnlog){
+   X=semiSupNMF:::.qcpm(X,testInternalUnlog,doLog)
   }
   initwmax=(MARK*matrixStats::rowMaxs(X)) #+ ((abs(MARK-1)*matrixStats::rowMins(X)))
 
@@ -87,28 +88,67 @@ mDeconv <- function(XEXP,gL,addG=NULL,addWhiteComp=F,
 
 
   W=mynmf$W
-
   colnames(W)=colnames(MARK)
   Ht=t(mynmf$H)
   colnames(Ht)=colnames(MARK)
-  D = diag(rowSums(mynmf$H))
-  NewH = MASS::ginv(D)%*% mynmf$H
-  NewW= W %*%D
-  NewHtprop=t(NewH)*(1/colSums(NewH))
-  colnames(NewHtprop)=colnames(Ht)
+  # normfac=(sapply(names(mark),\(icn){(sum((Wp[mark[[icn]],icn]) ))}))#/colSums(W[,names(mark)])
+  #
+  # Hn=t(t(Hp[,1:length(mark)])*normfac)
+  # Hpn = MASS::ginv(diag(rowSums(Hpn)))%*% Hpn
+  # D = diag(rowSums(mynmf$H))
+  # NewH = MASS::ginv(D)%*% mynmf$H
+  # NewW= W %*%D
+  # NewHtprop=t(NewH)*(1/colSums(NewH))
+  # colnames(NewHtprop)=colnames(Ht)
+  #
+  # Wnorm=semiSupNMF:::.qcpm(W[,which(colSums(W)>0)], unlog=F,outlog=isLogged2)
+  # normWISP=NULL
+  # try({normWISP=semiSupNMF:::.qWISProutine(Wnorm,X)})
 
-  Wnorm=semiSupNMF:::.qcpm(W, unlog=F,outlog=isLogged2)
+  # list(H=Ht,W=W,Hp=NewHtprop,Wp=NewW,Wnorm=Wnorm,normWISP=normWISP,NMF=mynmf,expUsed=X)
 
-  normWISP=NULL
-  try({normWISP=semiSupNMF:::.qWISProutine(Wnorm,X)})
 
-  list(H=Ht,W=W,Hp=NewHtprop,Wp=NewW,Wnorm=Wnorm,normWISP=normWISP,NMF=mynmf,expUsed=X)
+  normwh=normByWSum(mynmf,mean(colSums(X)))
 
+  list(H=Ht,W=W,normH=normwh$H,normW=normwh$W,NMF=mynmf,expUsed=X,markers=MARK,CVH=sd(rowSums(Ht))/mean(rowSums(Ht)))
 }
 
 
+#' normByWSum normalize NMF H by sum of values in W. Highly experimental
+#'
+#' @param nmf
+#' @param sumto
+#'
+#' @return normalized H and W
+#' @export
+#'
+#' @examples
+normByWSum=function(nmf,sumto=10000){
+  H=nmf$H
+  W=nmf$W
+  D = (colSums(W))/sumto
+  iD=1/D
+  iD[which(is.infinite(iD))]=0
+  list(H=t(D* H),W=t(t(W) * iD))
+}
 
-
+#' Normalize H (supposedly from NMF) to get sum to 1
+#'
+#' @param H H from NMF
+#' @param normFactor a vector of normalization fators (H columns are multiplied by normFactor before sumto1)
+#'
+#' @return H with lines sum to 1
+#' @export
+#'
+#' @examples
+normSumTo1=function(H,normFactor=NULL){
+  if(!is.null(normFactor)){
+    if(length(normFactor)==ncol(H)){
+      H=t(t(H)*normFactor)
+    }
+  }
+  H*(1/rowSums(H))
+}
 
 
 
